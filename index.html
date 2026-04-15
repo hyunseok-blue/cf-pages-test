@@ -106,6 +106,101 @@
         font-weight: 600;
         font-feature-settings: "tnum";
       }
+      .slack {
+        margin-top: 2rem;
+        padding: 1.25rem;
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        text-align: left;
+      }
+      .slack h2 {
+        margin: 0 0 0.25rem;
+        font-size: 1rem;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+      }
+      .slack .hint {
+        margin: 0 0 1rem;
+        font-size: 0.78rem;
+        color: var(--muted);
+      }
+      .slack label {
+        display: block;
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--muted);
+        margin: 0.6rem 0 0.3rem;
+      }
+      .slack input,
+      .slack textarea {
+        width: 100%;
+        padding: 0.65rem 0.8rem;
+        border-radius: 10px;
+        background: rgba(0, 0, 0, 0.35);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: var(--fg);
+        font: inherit;
+        font-size: 0.9rem;
+        outline: none;
+        transition: border-color 0.15s ease;
+      }
+      .slack input:focus,
+      .slack textarea:focus {
+        border-color: var(--accent);
+      }
+      .slack textarea {
+        min-height: 90px;
+        resize: vertical;
+        font-family: inherit;
+      }
+      .slack button {
+        margin-top: 0.9rem;
+        width: 100%;
+        padding: 0.75rem 1rem;
+        border-radius: 10px;
+        border: 1px solid rgba(246, 130, 31, 0.5);
+        background: var(--accent);
+        color: #1a1a1a;
+        font-weight: 700;
+        font-size: 0.9rem;
+        cursor: pointer;
+        transition:
+          transform 0.05s ease,
+          background 0.15s ease;
+      }
+      .slack button:hover {
+        background: #ff9333;
+      }
+      .slack button:active {
+        transform: translateY(1px);
+      }
+      .slack button[disabled] {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+      .slack .status {
+        margin-top: 0.85rem;
+        padding: 0.7rem 0.85rem;
+        border-radius: 10px;
+        font-size: 0.82rem;
+        line-height: 1.4;
+        display: none;
+      }
+      .slack .status.show {
+        display: block;
+      }
+      .slack .status.ok {
+        background: rgba(34, 197, 94, 0.12);
+        border: 1px solid rgba(34, 197, 94, 0.35);
+        color: #4ade80;
+      }
+      .slack .status.err {
+        background: rgba(239, 68, 68, 0.12);
+        border: 1px solid rgba(239, 68, 68, 0.35);
+        color: #f87171;
+      }
       footer {
         margin-top: 2rem;
         font-size: 0.75rem;
@@ -139,6 +234,35 @@
           <div class="value" id="now">—</div>
         </div>
       </div>
+      <section class="slack">
+        <h2>Slack 한 발 쏴보기</h2>
+        <p class="hint">
+          이 폼은 Pages Function(<code>/api/send</code>)을 거쳐 madup
+          API 게이트웨이로 메시지를 보냅니다. API 키는 서버에만 있고
+          브라우저엔 노출되지 않습니다.
+        </p>
+        <form id="slack-form">
+          <label for="channel">Channel</label>
+          <input
+            id="channel"
+            name="channel"
+            type="text"
+            value="C0AQ76HJLCS"
+            required
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <label for="message">Message</label>
+          <textarea
+            id="message"
+            name="message"
+            placeholder="여기에 보낼 메시지를 입력하세요…"
+            required
+          ></textarea>
+          <button id="send-btn" type="submit">Send to Slack</button>
+        </form>
+        <div id="status" class="status" role="status" aria-live="polite"></div>
+      </section>
       <footer>
         Built with
         <a href="https://developers.cloudflare.com/pages/" target="_blank"
@@ -160,6 +284,46 @@
       };
       tick();
       setInterval(tick, 1000);
+
+      const form = document.getElementById("slack-form");
+      const btn = document.getElementById("send-btn");
+      const status = document.getElementById("status");
+      const showStatus = (kind, msg) => {
+        status.textContent = msg;
+        status.className = `status show ${kind}`;
+      };
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const channel = document.getElementById("channel").value.trim();
+        const text = document.getElementById("message").value.trim();
+        if (!channel || !text) return;
+        btn.disabled = true;
+        btn.textContent = "Sending…";
+        try {
+          const res = await fetch("/api/send", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ channel, text }),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (res.ok && data?.success) {
+            const ts = data?.data?.ts || "—";
+            showStatus("ok", `전송 성공 · Slack ts: ${ts}`);
+            document.getElementById("message").value = "";
+          } else {
+            const err =
+              data?.error ||
+              data?.detail ||
+              `HTTP ${res.status} ${res.statusText}`;
+            showStatus("err", `실패: ${err}`);
+          }
+        } catch (err) {
+          showStatus("err", `요청 실패: ${err.message || err}`);
+        } finally {
+          btn.disabled = false;
+          btn.textContent = "Send to Slack";
+        }
+      });
     </script>
   </body>
 </html>
