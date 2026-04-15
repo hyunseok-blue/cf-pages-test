@@ -1,10 +1,28 @@
 const GATEWAY = "https://api-auth.madup-dct.site/api/slack/send-message";
 const MAX_TEXT_LEN = 4000;
 
-export async function onRequestPost({ request, env }) {
+export default {
+  async fetch(request, env) {
+    const url = new URL(request.url);
+
+    if (url.pathname === "/api/send") {
+      if (request.method !== "POST") {
+        return new Response("Method Not Allowed", {
+          status: 405,
+          headers: { Allow: "POST" },
+        });
+      }
+      return handleSend(request, env);
+    }
+
+    return env.ASSETS.fetch(request);
+  },
+};
+
+async function handleSend(request, env) {
   if (!env.API_KEY) {
     return Response.json(
-      { success: false, error: "API_KEY secret is not configured on Pages" },
+      { success: false, error: "API_KEY secret is not configured" },
       { status: 500 },
     );
   }
@@ -30,10 +48,7 @@ export async function onRequestPost({ request, env }) {
   }
   if (!text || text.length > MAX_TEXT_LEN) {
     return Response.json(
-      {
-        success: false,
-        error: `text must be 1-${MAX_TEXT_LEN} characters`,
-      },
+      { success: false, error: `text must be 1-${MAX_TEXT_LEN} characters` },
       { status: 400 },
     );
   }

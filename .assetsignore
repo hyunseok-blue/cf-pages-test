@@ -1,0 +1,8 @@
+src/
+functions/
+.github/
+.omc/
+*.md
+wrangler.jsonc
+.gitignore
+.assetsignore
